@@ -12,7 +12,7 @@ from CTFd.utils.decorators.visibility import (
     check_account_visibility,
     check_score_visibility,
 )
-from CTFd.utils.modes import TEAMS_MODE, generate_account_url, get_mode_as_word
+from CTFd.utils.modes import TEAMS_MODE, generate_account_url, get_mode_as_word, get_model
 from CTFd.utils.scores import get_standings, get_user_standings
 
 scoreboard_namespace = Namespace(
@@ -26,10 +26,20 @@ class ScoreboardList(Resource):
     @check_score_visibility
     @cache.cached(timeout=60, key_prefix=make_cache_key)
     def get(self):
-        standings = get_standings()
+        model = get_model()
+        standings = get_standings(
+            fields=[
+                model.affiliation
+            ]
+        )
         response = []
         mode = get_config("user_mode")
         account_type = get_mode_as_word()
+
+        # Optional filters
+        affiliation = request.args.get("affiliation", "").lower()
+        if affiliation not in ["student", "professional"]:
+            affiliation = None
 
         if mode == TEAMS_MODE:
             r = db.session.execute(
@@ -41,6 +51,7 @@ class ScoreboardList(Resource):
                         Users.team_id,
                         Users.hidden,
                         Users.banned,
+                        Users.affiliation,
                         Users.bracket_id,
                         Brackets.name.label("bracket_name"),
                     ]
@@ -58,6 +69,7 @@ class ScoreboardList(Resource):
                         "name": u.name,
                         "score": 0,
                         "bracket_id": u.bracket_id,
+                        "affiliation": u.affiliation,
                         "bracket_name": u.bracket_name,
                     }
 
@@ -67,11 +79,16 @@ class ScoreboardList(Resource):
                 membership[u.team_id][u.user_id]["score"] = int(u.score)
 
         for i, x in enumerate(standings):
+            if affiliation:
+                team_affiliation = x.affiliation.lower()
+                if team_affiliation != affiliation:
+                    continue
             entry = {
                 "pos": i + 1,
                 "account_id": x.account_id,
                 "account_url": generate_account_url(account_id=x.account_id),
                 "account_type": account_type,
+                "affiliation": x.affiliation,
                 "oauth_id": x.oauth_id,
                 "name": x.name,
                 "score": int(x.score),
