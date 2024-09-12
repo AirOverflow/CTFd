@@ -585,7 +585,6 @@ class TeamPrivateAwards(Resource):
         count = len(response.data)
         return {"success": True, "data": response.data, "meta": {"count": count}}
 
-
 @teams_namespace.route("/<team_id>/solves")
 @teams_namespace.param("team_id", "Team ID")
 class TeamPublicSolves(Resource):
@@ -594,6 +593,8 @@ class TeamPublicSolves(Resource):
     @check_account_visibility
     @check_score_visibility
     def get(self, team_id):
+        ## optional filters
+        only_bloods = request.args.get("only_bloods", "")
         team = Teams.query.filter_by(id=team_id).first_or_404()
 
         if (team.banned or team.hidden) and is_admin() is False:

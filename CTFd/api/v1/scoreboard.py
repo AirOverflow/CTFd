@@ -20,6 +20,25 @@ scoreboard_namespace = Namespace(
 )
 
 
+FIRST_BLOODS = []
+        
+@scoreboard_namespace.route("/bloods")
+class TeamFirstBloods(Resource):
+    # method_decorators = [require_team_mode]
+
+    @check_account_visibility
+    @check_score_visibility
+    def get(self):
+        return {"success": True, "data": FIRST_BLOODS}
+    
+    @check_account_visibility
+    @check_score_visibility
+    def post(self):
+        first_blood_data = request.get_json(silent=True)
+        if first_blood_data and first_blood_data not in FIRST_BLOODS:
+            FIRST_BLOODS.append(first_blood_data)
+            return {"success": True}
+
 @scoreboard_namespace.route("")
 class ScoreboardList(Resource):
     @check_account_visibility
